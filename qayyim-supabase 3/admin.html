@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم — قيّم Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#080808;--sf:#111;--sf2:#181818;--sf3:#202020;--bd:#252525;--bd2:#303030;--gold:#c9a84c;--gl:#e8c97a;--gd:rgba(201,168,76,.1);--tx:#ede9e1;--mu:#6a6560;--gr:#3fa86a;--rd:#d94f4f;--am:#e8943a;--r:12px;}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans Arabic','Tajawal',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px;}
+
+/* LOGIN */
+#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:var(--sf);border:1px solid var(--bd2);border-radius:18px;padding:40px;width:360px;text-align:center;}
+.login-box .logo{font-family:'Tajawal',sans-serif;font-size:28px;font-weight:900;color:var(--gold);margin-bottom:6px;}
+.login-box p{font-size:13px;color:var(--mu);margin-bottom:28px;}
+.inp{width:100%;background:var(--sf2);border:1px solid var(--bd2);border-radius:9px;padding:11px 14px;color:var(--tx);font-family:inherit;font-size:14px;outline:none;direction:rtl;transition:border-color .2s;margin-bottom:12px;}
+.inp:focus{border-color:var(--gold);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:11px 22px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .2s;text-decoration:none;}
+.btn-gold{background:var(--gold);color:#080808;width:100%;justify-content:center;padding:13px;}
+.btn-gold:hover{background:var(--gl);}
+.btn-out{background:transparent;border:1px solid var(--bd2);color:var(--mu);}
+.btn-out:hover{border-color:var(--gold);color:var(--gold);}
+.btn-gr{background:var(--gr);color:#fff;}
+.btn-gr:hover{opacity:.88;}
+.btn-rd{background:var(--rd);color:#fff;}
+.btn-rd:hover{opacity:.88;}
+.btn-am{background:var(--am);color:#fff;}
+.btn-am:hover{opacity:.88;}
+.btn-sm{padding:7px 14px;font-size:12px;}
+
+/* LAYOUT */
+#app{display:none;min-height:100vh;}
+.sidebar{position:fixed;top:0;right:0;bottom:0;width:230px;background:var(--sf);border-left:1px solid var(--bd);padding:24px 0;z-index:100;}
+.sidebar-logo{font-family:'Tajawal',sans-serif;font-size:22px;font-weight:900;color:var(--gold);padding:0 20px 24px;border-bottom:1px solid var(--bd);margin-bottom:16px;}
+.sidebar-logo span{font-size:12px;font-weight:400;color:var(--mu);display:block;margin-top:2px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:11px 20px;font-size:14px;color:var(--mu);cursor:pointer;transition:all .2s;border-right:3px solid transparent;}
+.nav-item:hover{color:var(--tx);background:var(--sf2);}
+.nav-item.active{color:var(--gold);background:var(--gd);border-right-color:var(--gold);}
+.sidebar-bottom{position:absolute;bottom:0;left:0;right:0;padding:16px 20px;border-top:1px solid var(--bd);}
+.admin-info{font-size:12px;color:var(--mu);margin-bottom:10px;}
+.main{margin-right:230px;padding:28px 32px;min-height:100vh;}
+
+/* HEADER */
+.page-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;}
+.page-title{font-family:'Tajawal',sans-serif;font-size:22px;font-weight:700;}
+.page-sub{font-size:13px;color:var(--mu);margin-top:2px;}
+
+/* STATS CARDS */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;}
+.kpi-n{font-family:'Tajawal',sans-serif;font-size:28px;font-weight:900;display:block;margin-bottom:4px;}
+.kpi-l{font-size:12px;color:var(--mu);}
+.kpi.pending .kpi-n{color:var(--am);}
+.kpi.approved .kpi-n{color:var(--gr);}
+.kpi.reviews .kpi-n{color:var(--gold);}
+.kpi.total .kpi-n{color:var(--tx);}
+
+/* TABLE */
+.table-wrap{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;}
+.table-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd);}
+.table-title{font-weight:600;font-size:15px;}
+.filters-row{display:flex;gap:8px;align-items:center;}
+.filter-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--mu);font-family:inherit;font-size:12px;cursor:pointer;transition:all .2s;}
+.filter-btn:hover,.filter-btn.on{border-color:var(--gold);color:var(--gold);background:var(--gd);}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:12px 16px;text-align:right;font-size:12px;font-weight:500;color:var(--mu);border-bottom:1px solid var(--bd);background:var(--sf2);}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .15s;}
+tbody tr:hover{background:var(--sf2);}
+tbody td{padding:14px 16px;font-size:13px;vertical-align:middle;}
+tbody tr:last-child{border-bottom:none;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:500;}
+.badge-pend{background:rgba(232,148,58,.15);color:var(--am);}
+.badge-appr{background:rgba(63,168,106,.15);color:var(--gr);}
+.badge-rej{background:rgba(217,79,79,.15);color:var(--rd);}
+.store-name{font-weight:600;font-size:14px;}
+.store-cat{font-size:11px;color:var(--mu);margin-top:2px;}
+.act-row{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:22px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:4px;}
+.tab{flex:1;padding:10px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--mu);transition:all .2s;}
+.tab.on{background:var(--sf3);color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+
+/* LOADING */
+.loader{text-align:center;padding:48px;color:var(--mu);}
+.spinner{width:28px;height:28px;border:2px solid var(--bd2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty-state{text-align:center;padding:48px;color:var(--mu);font-size:14px;}
+.empty-state .ei{font-size:36px;display:block;margin-bottom:10px;}
+
+/* MODAL */
+.ov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;}
+.ov.open{opacity:1;pointer-events:all;}
+.modal{background:var(--sf);border:1px solid var(--bd2);border-radius:18px;padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;transform:translateY(16px);transition:transform .3s;}
+.ov.open .modal{transform:translateY(0);}
+.mhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.mt{font-family:'Tajawal',sans-serif;font-size:18px;font-weight:700;}
+.xb{background:var(--sf2);border:1px solid var(--bd2);color:var(--mu);width:32px;height:32px;border-radius:7px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.xb:hover{color:var(--tx);}
+.drow{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);}
+.drow:last-child{border-bottom:none;}
+.dk{font-size:12px;color:var(--mu);}
+.dv{font-size:13px;font-weight:500;text-align:left;}
+.fg{margin-bottom:14px;}
+.lb{display:block;font-size:12px;font-weight:500;color:var(--mu);margin-bottom:5px;}
+textarea.inp{resize:vertical;min-height:72px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);padding:11px 22px;border-radius:100px;font-size:13px;font-weight:500;z-index:500;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:768px){.sidebar{display:none;}.main{margin-right:0;padding:20px;}.kpi-row{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo">قيّم</div>
+    <p>لوحة تحكم المشرفين</p>
+    <input type="email"    class="inp" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="username">
+    <input type="password" class="inp" id="loginPass"  placeholder="كلمة المرور" autocomplete="current-password">
+    <button class="btn btn-gold" onclick="doLogin()" id="loginBtn">دخول</button>
+    <p id="loginErr" style="color:var(--rd);font-size:12px;margin-top:10px;"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">قيّم <span>لوحة التحكم</span></div>
+    <div class="nav-item active" onclick="showTab('stores')">🏪 المتاجر</div>
+    <div class="nav-item" onclick="showTab('reviews')">⭐ التقييمات</div>
+    <div class="sidebar-bottom">
+      <div class="admin-info" id="adminEmail">—</div>
+      <button class="btn btn-out" style="width:100%;justify-content:center;" onclick="doLogout()">تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- STORES TAB -->
+    <div id="tabStores">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">🏪 إدارة المتاجر</div>
+          <div class="page-sub">راجع طلبات الإدراج واعتمدها أو ارفضها</div>
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="loadStores()">🔄 تحديث</button>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi pending"><span class="kpi-n" id="kPend">—</span><div class="kpi-l">⏳ في الانتظار</div></div>
+        <div class="kpi approved"><span class="kpi-n" id="kAppr">—</span><div class="kpi-l">✅ معتمد</div></div>
+        <div class="kpi reviews"><span class="kpi-n" id="kRevs">—</span><div class="kpi-l">⭐ التقييمات</div></div>
+        <div class="kpi total"><span class="kpi-n" id="kTotal">—</span><div class="kpi-l">📊 الإجمالي</div></div>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="tabs">
+        <button class="tab on" onclick="setStoreFilter(this,'all')">الكل</button>
+        <button class="tab" onclick="setStoreFilter(this,'pending')">⏳ انتظار</button>
+        <button class="tab" onclick="setStoreFilter(this,'approved')">✅ معتمد</button>
+        <button class="tab" onclick="setStoreFilter(this,'rejected')">❌ مرفوض</button>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-wrap">
+        <div class="table-hd">
+          <div class="table-title">قائمة المتاجر</div>
+        </div>
+        <div id="storesTableWrap">
+          <div class="loader"><div class="spinner"></div>جاري التحميل...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVIEWS TAB -->
+    <div id="tabReviews" style="display:none;">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">⭐ إدارة التقييمات</div>
+          <div class="page-sub">راجع التقييمات وأخفِ المخالفة منها</div>
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="loadReviews()">🔄 تحديث</button>
+      </div>
+      <div class="table-wrap">
+        <div id="reviewsTableWrap">
+          <div class="loader"><div class="spinner"></div>جاري التحميل...</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- STORE DETAIL MODAL -->
+<div class="ov" id="ovStore">
+  <div class="modal">
+    <div class="mhd">
+      <div class="mt" id="mStoreName">تفاصيل المتجر</div>
+      <button class="xb" onclick="closeOv('ovStore')">✕</button>
+    </div>
+    <div id="mStoreDetails"></div>
+    <div style="margin-top:16px;" class="fg">
+      <label class="lb">ملاحظة (اختيارية للمتجر)</label>
+      <textarea class="inp" id="adminNote" placeholder="سبب الرفض أو ملاحظة للمتجر..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button class="btn btn-gr" style="flex:1;justify-content:center;" onclick="approveStore()">✅ اعتماد</button>
+      <button class="btn btn-rd" style="flex:1;justify-content:center;" onclick="rejectStore()">❌ رفض</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// ⚙️  إعدادات Supabase
+// ============================================================
+const SUPA_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPA_KEY = 'YOUR_ANON_PUBLIC_KEY';
+// ============================================================
+
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+let storeFilter = 'all';
+let allStores   = [];
+let selectedStoreId = null;
+
+// ===================== AUTH =====================
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const btn   = document.getElementById('loginBtn');
+  btn.disabled=true; btn.textContent='جاري الدخول...';
+
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+  btn.disabled=false; btn.textContent='دخول';
+
+  if (error) {
+    document.getElementById('loginErr').textContent = 'بيانات غير صحيحة. حاول مجدداً.';
+    return;
+  }
+  showApp(email);
+}
+
+async function checkSession() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) showApp(session.user.email);
+}
+
+function showApp(email) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('adminEmail').textContent = email;
+  loadStores();
+  loadStats();
+}
+
+async function doLogout() {
+  await db.auth.signOut();
+  location.reload();
+}
+
+// ===================== STATS =====================
+async function loadStats() {
+  const [{ count: pend }, { count: appr }, { count: revs }, { count: total }] = await Promise.all([
+    db.from('stores').select('*',{count:'exact',head:true}).eq('status','pending'),
+    db.from('stores').select('*',{count:'exact',head:true}).eq('status','approved'),
+    db.from('reviews').select('*',{count:'exact',head:true}).eq('status','approved'),
+    db.from('stores').select('*',{count:'exact',head:true}),
+  ]);
+  document.getElementById('kPend').textContent  = pend  || 0;
+  document.getElementById('kAppr').textContent  = appr  || 0;
+  document.getElementById('kRevs').textContent  = revs  || 0;
+  document.getElementById('kTotal').textContent = total || 0;
+}
+
+// ===================== STORES =====================
+async function loadStores() {
+  document.getElementById('storesTableWrap').innerHTML = '<div class="loader"><div class="spinner"></div>جاري التحميل...</div>';
+  let q = db.from('stores').select('*').order('created_at', { ascending: false });
+  if (storeFilter !== 'all') q = q.eq('status', storeFilter);
+  const { data, error } = await q;
+  if (error) { console.error(error); return; }
+  allStores = data || [];
+  renderStoresTable(allStores);
+}
+
+function renderStoresTable(stores) {
+  const wrap = document.getElementById('storesTableWrap');
+  if (!stores.length) {
+    wrap.innerHTML = '<div class="empty-state"><span class="ei">📭</span>لا توجد متاجر في هذه الفئة</div>';
+    return;
+  }
+
+  const catLabel = {store:'متجر',product:'منتج',service:'مزود خدمة',specialist:'اختصاصي',other:'أخرى'};
+
+  wrap.innerHTML = `
+  <table>
+    <thead>
+      <tr>
+        <th>المتجر</th><th>المنصة</th>
+        <th>مقدم الطلب</th><th>التاريخ</th><th>الحالة</th><th>إجراء</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${stores.map(s => `
+        <tr>
+          <td>
+            <div class="store-name">${s.name}</div>
+            <div class="store-cat">${catLabel[s.category]||s.category}</div>
+          </td>
+          <td>
+            ${s.ig_handle ? `<div style="font-size:12px;color:var(--mu)">📸 ${s.ig_handle}</div>` : ''}
+            ${s.website   ? `<div style="font-size:12px;color:var(--mu)">🌐 موقع</div>` : ''}
+          </td>
+          <td style="font-size:12px;color:var(--mu)">${s.submitted_by||'—'}</td>
+          <td style="font-size:12px;color:var(--mu)">${new Date(s.created_at).toLocaleDateString('ar-SA')}</td>
+          <td>
+            ${s.status==='pending'  ? '<span class="badge badge-pend">⏳ انتظار</span>' : ''}
+            ${s.status==='approved' ? '<span class="badge badge-appr">✅ معتمد</span>'  : ''}
+            ${s.status==='rejected' ? '<span class="badge badge-rej">❌ مرفوض</span>'   : ''}
+          </td>
+          <td>
+            <div class="act-row">
+              <button class="btn btn-out btn-sm" onclick="openStoreDetail('${s.id}')">عرض</button>
+              ${s.status!=='approved' ? `<button class="btn btn-gr btn-sm" onclick="quickApprove('${s.id}')">✅</button>` : ''}
+              ${s.status!=='rejected' ? `<button class="btn btn-rd btn-sm" onclick="quickReject('${s.id}')">❌</button>`  : ''}
+              ${s.status==='approved' && !s.verified ? `<button class="btn btn-am btn-sm" onclick="toggleVerified('${s.id}',true)">وثّق</button>` : ''}
+              ${s.verified ? `<button class="btn btn-out btn-sm" onclick="toggleVerified('${s.id}',false)">إلغاء توثيق</button>` : ''}
+            </div>
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function setStoreFilter(el, f) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on'); storeFilter=f; loadStores();
+}
+
+// ---- Detail Modal ----
+function openStoreDetail(id) {
+  selectedStoreId = id;
+  const s = allStores.find(x=>x.id===id);
+  document.getElementById('mStoreName').textContent = s.name;
+  document.getElementById('adminNote').value = s.admin_note || '';
+  document.getElementById('mStoreDetails').innerHTML = `
+    <div class="drow"><span class="dk">الفئة</span><span class="dv">${s.category}</span></div>
+    <div class="drow"><span class="dk">الوصف</span><span class="dv">${s.description||'—'}</span></div>
+    <div class="drow"><span class="dk">إنستاجرام</span><span class="dv">${s.ig_handle||'—'}</span></div>
+    <div class="drow"><span class="dk">الموقع</span><span class="dv">${s.website||'—'}</span></div>
+    <div class="drow"><span class="dk">مقدم الطلب</span><span class="dv">${s.submitted_by||'—'}</span></div>
+    <div class="drow"><span class="dk">تاريخ الطلب</span><span class="dv">${new Date(s.created_at).toLocaleString('ar-SA')}</span></div>
+    <div class="drow"><span class="dk">الحالة</span><span class="dv">${s.status}</span></div>`;
+  openOv('ovStore');
+}
+
+async function approveStore() {
+  await updateStoreStatus(selectedStoreId, 'approved');
+  closeOv('ovStore');
+}
+
+async function rejectStore() {
+  await updateStoreStatus(selectedStoreId, 'rejected');
+  closeOv('ovStore');
+}
+
+async function quickApprove(id) { await updateStoreStatus(id,'approved'); }
+async function quickReject(id)  { await updateStoreStatus(id,'rejected'); }
+
+async function updateStoreStatus(id, status) {
+  const note = document.getElementById('adminNote')?.value || '';
+  const { error } = await db.from('stores').update({ status, admin_note: note }).eq('id', id);
+  if (error) return showToast('❌ خطأ في التحديث','var(--rd)');
+  showToast(status==='approved' ? '✅ تم اعتماد المتجر' : '❌ تم رفض المتجر', status==='approved'?'var(--gr)':'var(--rd)');
+  loadStores(); loadStats();
+}
+
+async function toggleVerified(id, val) {
+  const { error } = await db.from('stores').update({ verified: val }).eq('id', id);
+  if (error) return showToast('❌ خطأ','var(--rd)');
+  showToast(val ? '⭐ تم التوثيق' : 'تم إلغاء التوثيق');
+  loadStores();
+}
+
+// ===================== REVIEWS =====================
+async function loadReviews() {
+  document.getElementById('reviewsTableWrap').innerHTML = '<div class="loader"><div class="spinner"></div>جاري التحميل...</div>';
+  const { data, error } = await db
+    .from('reviews')
+    .select('*, stores(name)')
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) { console.error(error); return; }
+  renderReviewsTable(data||[]);
+}
+
+function renderReviewsTable(reviews) {
+  const wrap = document.getElementById('reviewsTableWrap');
+  if (!reviews.length) {
+    wrap.innerHTML = '<div class="empty-state"><span class="ei">📭</span>لا توجد تقييمات</div>';
+    return;
+  }
+  wrap.innerHTML = `
+  <table>
+    <thead><tr><th>المتجر</th><th>الكاتب</th><th>التقييم</th><th>التقييم</th><th>التاريخ</th><th>الحالة</th><th>إجراء</th></tr></thead>
+    <tbody>
+      ${reviews.map(r=>`
+        <tr>
+          <td style="font-weight:600">${r.stores?.name||'—'}</td>
+          <td style="font-size:12px;color:var(--mu)">${r.author_name}</td>
+          <td><span style="color:var(--gold);font-size:15px">${'★'.repeat(r.rating)}</span></td>
+          <td style="font-size:12px;color:var(--mu);max-width:240px;line-height:1.5">${r.body?.slice(0,80)}${r.body?.length>80?'...':''}</td>
+          <td style="font-size:12px;color:var(--mu)">${new Date(r.created_at).toLocaleDateString('ar-SA')}</td>
+          <td>
+            ${r.status==='approved' ? '<span class="badge badge-appr">ظاهر</span>' : '<span class="badge badge-rej">مخفي</span>'}
+          </td>
+          <td>
+            ${r.status==='approved'
+              ? `<button class="btn btn-rd btn-sm" onclick="hideReview('${r.id}')">إخفاء</button>`
+              : `<button class="btn btn-gr btn-sm" onclick="showReview('${r.id}')">إظهار</button>`}
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function hideReview(id) {
+  await db.from('reviews').update({ status:'hidden' }).eq('id',id);
+  showToast('تم إخفاء التقييم','var(--am)');
+  loadReviews(); loadStats();
+}
+
+async function showReview(id) {
+  await db.from('reviews').update({ status:'approved' }).eq('id',id);
+  showToast('✅ تم إظهار التقييم');
+  loadReviews(); loadStats();
+}
+
+// ===================== TABS =====================
+function showTab(tab) {
+  document.getElementById('tabStores').style.display  = tab==='stores'  ? 'block':'none';
+  document.getElementById('tabReviews').style.display = tab==='reviews' ? 'block':'none';
+  document.querySelectorAll('.nav-item').forEach((el,i)=>el.classList.toggle('active', (i===0&&tab==='stores')||(i===1&&tab==='reviews')));
+  if(tab==='reviews') loadReviews();
+}
+
+// ===================== MODAL =====================
+function openOv(id)  { document.getElementById(id).classList.add('open'); }
+function closeOv(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ===================== TOAST =====================
+function showToast(msg, bg='var(--gr)') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=bg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ===================== INIT =====================
+checkSession();
+</script>
+</body>
+</html>
